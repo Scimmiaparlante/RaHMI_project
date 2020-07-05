@@ -44,6 +44,10 @@ q_traj_noopt(1, 1:7) = q_start;
 manip_traj(1) = manipulability(0, q_start, robot, 0, 0);
 manip_traj_noopt(1) = manipulability(0, q_start, robot, 0, 0);
 
+limit_traj(1) = dist_from_limit(0, q_start, robot, 0, 0);
+limit_traj_noopt(1) = dist_from_limit(0, q_start, robot, 0, 0);
+
+
 q_current = q_start;
 
 
@@ -80,9 +84,6 @@ for i = 1:(n_steps-1)
 	 
 	dq_dot_curr = J_pinv * dVe';
 	q_current = q_current + (dq_dot_curr * dt);
-	
-	q_traj(i+1, 1:7) = q_current;
-	manip_traj(i+1) = manipulability(0, q_current, robot, 0, 0);
 
 	if optimization ~= "noopt"
 		
@@ -99,15 +100,16 @@ for i = 1:(n_steps-1)
 		
 		dq0_dot = fmincon(obj_fun, zeros(n_joints, 1), [], [], [], [], lb, ub, [], options);
 		q_current = q_current + (P * dq0_dot) * dt;
-			
-		q_traj(i+1, 1:7) = q_current;
-		manip_traj(i+1) = manipulability(0, q_current, robot, 0, 0);
 	
 	else
 		q_traj_noopt(i+1, 1:7) = q_current;
 		manip_traj_noopt(i+1) = manipulability(0, q_current, robot, 0, 0);
+		limit_traj_noopt(i+1) = dist_from_limit(0, q_current, robot, 0, 0);
 	end
 	
+	q_traj(i+1, 1:7) = q_current;
+	manip_traj(i+1) = manipulability(0, q_current, robot, 0, 0);
+	limit_traj(i+1) = dist_from_limit(0, q_current, robot, 0, 0);
 
 end
 
@@ -132,10 +134,15 @@ end
 
 %% MANIPULABILITY PLOT
 
-	plot(1:50, manip_traj(:), 'b');
-	hold on
-	plot(1:50, manip_traj_noopt(:), 'r');
+plot(1:50, manip_traj(:), 'b');
+hold on
+plot(1:50, manip_traj_noopt(:), 'r');
 
+%% LIMITS DISTANCE PLOT
+
+plot(1:50, limit_traj(:), 'b');
+hold on
+plot(1:50, limit_traj_noopt(:), 'r');
 
 %% OBJECTIVE FUNCTIONS
 
