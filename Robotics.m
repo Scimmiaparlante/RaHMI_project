@@ -22,7 +22,7 @@ robot = SerialLink(L, 'name', 'Robot');
 %"manip" for manipulability optimization
 %"limits" for workspace limits optimization
 %"noopt" for no optimization
-optimization = "limits";
+optimization = "noopt";
 
 
 n_joints = size(robot.qlim, 1);
@@ -46,6 +46,8 @@ manip_traj_noopt(1) = manipulability(0, q_start, robot, 0, 0);
 
 limit_traj(1) = dist_from_limit(0, q_start, robot, 0, 0);
 limit_traj_noopt(1) = dist_from_limit(0, q_start, robot, 0, 0);
+
+manip_matrix_traj(1,:,:) = manipulab_ellipsoid_matrix(robot, q_start);
 
 
 q_current = q_start;
@@ -110,6 +112,7 @@ for i = 1:(n_steps-1)
 	q_traj(i+1, 1:7) = q_current;
 	manip_traj(i+1) = manipulability(0, q_current, robot, 0, 0);
 	limit_traj(i+1) = dist_from_limit(0, q_current, robot, 0, 0);
+	manip_matrix_traj(i+1,:,:) = manipulab_ellipsoid_matrix(robot, q_current);
 
 end
 
@@ -119,9 +122,18 @@ end
 
 %robot.plot(q_traj);
 
-%ellipsoid_matrix(:,:) = manip_matrix_traj(1,:,:)
-%plot_ellipse(ellipsoid_matrix);
+%% SIMULATION WITH ELLIPSOID
 
+for i = 1:(n_steps-1)
+
+	robot.plot(q_traj(i,:));
+	delete(h);
+	hold on
+	ellipsoid_matrix(:,:) = manip_matrix_traj(i,:,:);
+	h = plot_ellipse(10000000*ellipsoid_matrix, transl(robot.fkine(q_traj(i,:))), 'edgecolor', 'y');
+	pause(0.5);
+	
+end
 
 %% Q PLOTS (OPT vs NO_OPT)
 
