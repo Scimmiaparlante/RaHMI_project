@@ -22,7 +22,7 @@ robot = SerialLink(L, 'name', 'Robot');
 %"manip" for manipulability optimization
 %"limits" for workspace limits optimization
 %"noopt" for no optimization
-optimization = "noopt";
+optimization = "limits";
 
 
 n_joints = size(robot.qlim, 1);
@@ -35,7 +35,7 @@ T_end = transl([-100 -90 20]) *trotx(-pi);
 n_steps = 50;
 time = 5;
 dt = time / n_steps;
-Ttraj = ctraj(T_start, T_end, n_steps);
+T_traj = ctraj(T_start, T_end, n_steps);
 
 
 q_traj(1,1:7) = q_start;
@@ -55,13 +55,13 @@ q_current = q_start;
 
 for i = 1:(n_steps-1)
 	
-	Tprev = Ttraj(:,:,i);
-	Tcurrent = Ttraj(:,:,i+1);
+	T_prev = T_traj(:,:,i);
+	T_current = T_traj(:,:,i+1);
 
-	prev_pos(1:3) = transl(Tprev);
-	prev_pos(4:6) = tr2rpy(Tprev);
-	cur_pos(1:3) = transl(Tcurrent);
-	cur_pos(4:6) = tr2rpy(Tcurrent);
+	prev_pos(1:3) = transl(T_prev);
+	prev_pos(4:6) = tr2rpy(T_prev);
+	cur_pos(1:3) = transl(T_current);
+	cur_pos(4:6) = tr2rpy(T_current);
 
 	dS = (cur_pos - prev_pos);
 	
@@ -72,10 +72,10 @@ for i = 1:(n_steps-1)
 		end
 	end
 	
-	dVe = dS / dt;
+	dv = dS / dt;
 	
 	%transform the rpy angle ratio to angular velocity, since we use the geometric jacobian 
-	dVe(4:6) = rpy2jac(prev_pos(4:6)) * dVe(4:6)';
+	dv(4:6) = rpy2jac(prev_pos(4:6)) * dv(4:6)';
 	
 	I = eye(size(robot.qlim, 1));
 	J = robot.jacob0(q_current);
@@ -84,7 +84,7 @@ for i = 1:(n_steps-1)
 
 	dq0_dot_current = 0;
 	 
-	dq_dot_curr = J_pinv * dVe';
+	dq_dot_curr = J_pinv * dv';
 	q_current = q_current + (dq_dot_curr * dt);
 
 	if optimization ~= "noopt"
@@ -155,6 +155,15 @@ plot(1:50, manip_traj_noopt(:), 'r');
 plot(1:50, limit_traj(:), 'b');
 hold on
 plot(1:50, limit_traj_noopt(:), 'r');
+
+
+%% PATH PLOT
+
+points = transl(T_traj);
+
+robot.plot(q_start');
+hold on
+plot3(points(:,1), points(:,2), points(:,3), 'r');
 
 %% OBJECTIVE FUNCTIONS
 
