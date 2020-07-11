@@ -14,18 +14,12 @@ end
 
 robot = SerialLink(L, 'name', 'Robot');
 
-%robot.plot([-pi/2 pi/4 -pi/8 0 pi/8 0 0]);
+%robot.plot([-pi/2 pi/4 -pi/8 0 pi/8 pi/4 0]);
 %robot.qlim
 
-%% MOTION PLANNING
-
-%"manip" for manipulability optimization
-%"limits" for workspace limits optimization
-%"noopt" for no optimization
-optimization = "limits";
-
-
 n_joints = size(robot.qlim, 1);
+
+%% MOTION PLANNING #1
 
 q_start = [-pi/2 pi/4 -pi/8 0 pi/8 pi/4 0]';
 
@@ -38,6 +32,29 @@ dt = time / n_steps;
 T_traj = ctraj(T_start, T_end, n_steps);
 
 
+%% MOTION PLANNING #2
+
+q_start = [-pi/2 pi/4 -pi/8 0 pi/8 pi/4 0]';
+
+T_start = robot.fkine(q_start);
+T_end = transl([-100 -90 20]) * trotx(-pi);
+T_middle = T_end * transl([0 0 -50]);
+
+n_steps = 70;
+time = 10;
+dt = time / n_steps;
+T_traj(:,:,1:50) = ctraj(T_start, T_middle, 50);
+T_traj(:,:,51:70) = ctraj(T_middle, T_end, 20);
+
+
+%% ANIMATION
+
+%"manip" for manipulability optimization
+%"limits" for workspace limits optimization
+%"noopt" for no optimization
+optimization = "noopt";
+
+
 q_traj(1,1:7) = q_start;
 q_traj_noopt(1, 1:7) = q_start;
 
@@ -48,7 +65,6 @@ limit_traj(1) = dist_from_limit(0, q_start, robot, 0, 0);
 limit_traj_noopt(1) = dist_from_limit(0, q_start, robot, 0, 0);
 
 manip_matrix_traj(1,:,:) = manipulab_ellipsoid_matrix(robot, q_start);
-
 
 q_current = q_start;
 
@@ -120,41 +136,44 @@ end
 %T_traj_noopt = robot.fkine(q_traj_noopt)
 
 
-%robot.plot(q_traj);
+robot.plot(q_traj);
 
 %% SIMULATION WITH ELLIPSOID
 
+
+robot.plot(q_traj(1,:));
+
 for i = 1:(n_steps-1)
 
-	robot.plot(q_traj(i,:));
-	delete(h);
 	hold on
 	ellipsoid_matrix(:,:) = manip_matrix_traj(i,:,:);
-	h = plot_ellipse(10000000*ellipsoid_matrix, transl(robot.fkine(q_traj(i,:))), 'edgecolor', 'y');
+	h = plot_ellipse(1e7*ellipsoid_matrix, transl(robot.fkine(q_traj(i,:))), 'edgecolor', 'y');
 	pause(0.5);
-	
+	robot.plot(q_traj(i,:));
+	delete(h);
+
 end
 
 %% Q PLOTS (OPT vs NO_OPT)
 
 for i = 1:n_links
 	figure(i)
-	plot(1:50, q_traj(:,i), 'b');
+	plot(1:n_steps, q_traj(:,i), 'b');
 	hold on
-	plot(1:50, q_traj_noopt(:,i), 'r');
+	plot(1:n_steps, q_traj_noopt(:,i), 'r');
 end
 
 %% MANIPULABILITY PLOT
 
-plot(1:50, manip_traj(:), 'b');
+plot(1:n_steps, manip_traj(:), 'b');
 hold on
-plot(1:50, manip_traj_noopt(:), 'r');
+plot(1:n_steps, manip_traj_noopt(:), 'r');
 
 %% LIMITS DISTANCE PLOT
 
-plot(1:50, limit_traj(:), 'b');
+plot(1:n_steps, limit_traj(:), 'b');
 hold on
-plot(1:50, limit_traj_noopt(:), 'r');
+plot(1:n_steps, limit_traj_noopt(:), 'r');
 
 
 %% PATH PLOT
