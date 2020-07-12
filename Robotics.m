@@ -52,7 +52,7 @@ T_traj(:,:,51:70) = ctraj(T_middle, T_end, 20);
 %"manip" for manipulability optimization
 %"limits" for workspace limits optimization
 %"noopt" for no optimization
-optimization = "noopt";
+optimization = "dist";
 
 
 q_traj(1,1:7) = q_start;
@@ -63,6 +63,10 @@ manip_traj_noopt(1) = manipulability(0, q_start, robot, 0, 0);
 
 limit_traj(1) = dist_from_limit(0, q_start, robot, 0, 0);
 limit_traj_noopt(1) = dist_from_limit(0, q_start, robot, 0, 0);
+
+point = [-20; -10; -70];
+dist_point(1) = dist_joint(0, q_start, robot, 0, 0, point);
+dist_point_noopt(1) = dist_joint(0, q_start, robot, 0, 0, point);
 
 manip_matrix_traj(1,:,:) = manipulab_ellipsoid_matrix(robot, q_start);
 
@@ -114,6 +118,10 @@ for i = 1:(n_steps-1)
 			obj_fun = @(x) -manipulability(x, q_current, robot, dt, P);
 		elseif optimization == "limits"
 			obj_fun = @(x) -dist_from_limit(x, q_current, robot, dt, P);
+		elseif optimization == "dist"
+			obj_fun = @(x) -dist_joint(x, q_current, robot, dt, P, point);
+			plot3(point(1), point(2), point(3), '.m', 'MarkerSize', 20);
+			hold on
 		end
 		
 		dq0_dot = fmincon(obj_fun, zeros(n_joints, 1), [], [], [], [], lb, ub, [], options);
@@ -123,11 +131,13 @@ for i = 1:(n_steps-1)
 		q_traj_noopt(i+1, 1:7) = q_current;
 		manip_traj_noopt(i+1) = manipulability(0, q_current, robot, 0, 0);
 		limit_traj_noopt(i+1) = dist_from_limit(0, q_current, robot, 0, 0);
+		dist_point_noopt(i+1) = dist_joint(0, q_current, robot, 0, 0, point);
 	end
 	
 	q_traj(i+1, 1:7) = q_current;
 	manip_traj(i+1) = manipulability(0, q_current, robot, 0, 0);
 	limit_traj(i+1) = dist_from_limit(0, q_current, robot, 0, 0);
+	dist_point(i+1) = dist_joint(0, q_current, robot, 0, 0, point);
 	manip_matrix_traj(i+1,:,:) = manipulab_ellipsoid_matrix(robot, q_current);
 
 end
@@ -175,6 +185,12 @@ plot(1:n_steps, limit_traj(:), 'b');
 hold on
 plot(1:n_steps, limit_traj_noopt(:), 'r');
 
+%% DISTANCE FROM POINT PLOT
+
+plot(1:n_steps, dist_point(:), 'b');
+hold on
+plot(1:n_steps,dist_point_noopt(:), 'r');
+
 
 %% PATH PLOT
 
@@ -210,6 +226,23 @@ function lim_dist = dist_from_limit(dq0_dot, q, robot, dt, P)
 	end
 	
 	lim_dist = avg_sum / (2 * size(q_updated, 1));
+end
+
+
+function dist = dist_joint(dq0_dot, q, robot, dt, P, point)
+
+	q_updated = q + (P*dq0_dot * dt);
+
+	link_num = 3;
+	T = eye(4);
+	
+	for i = 1:link_num
+		T = T * robot.links(i).A(q_updated(i));
+	end
+	
+	pos_joint = transl(T);
+	
+	dist = norm(point - pos_joint);
 end
 
 
